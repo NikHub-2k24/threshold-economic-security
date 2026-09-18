@@ -1,6 +1,10 @@
 import streamlit as st
 import json
 import urllib.parse
+
+import os, sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from protocols.case_studies import get_all_case_studies
 
 st.set_page_config(page_title="Case Studies", layout="wide")
