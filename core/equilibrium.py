@@ -78,9 +78,8 @@ def get_destabilization_thresholds(game: Game, baseline_profile: Tuple[Strategy,
                 dev_profile[c_idx] = joint_strategy[idx]
             dev_profile = tuple(dev_profile)
             
-            honest_count = sum(1 for s in dev_profile if s == Strategy.HONEST)
-            service_fails = (honest_count < game.protocol.t)
             dev_p_success = game.get_p_success(dev_profile)
+            service_fails = (dev_p_success < baseline_p_success)
             
             r_values = []
             for c_idx in C:

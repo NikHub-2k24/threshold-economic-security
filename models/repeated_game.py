@@ -4,18 +4,10 @@ from core.game import Game
 from core.equilibrium import is_pure_strategy_nash_equilibrium, get_all_profiles
 
 def find_pure_strategy_nash_equilibria(game: Game) -> List[Tuple[Strategy, ...]]:
+    """
+    Returns the complete set of pure-strategy Nash equilibria for the game.
+    """
     n = len(game.participants)
-    
-    # Fast paths: check obvious punishment profiles first
-    candidates = [
-        tuple([Strategy.ABSTAIN] * n),
-        tuple([Strategy.DEFECT] * n)
-    ]
-    for c in candidates:
-        if is_pure_strategy_nash_equilibrium(game, c):
-            return [c]
-            
-    # Fallback to full enumeration
     profiles = get_all_profiles(n)
     return [p for p in profiles if is_pure_strategy_nash_equilibrium(game, p)]
 
@@ -30,7 +22,11 @@ def check_grim_trigger_sustainability(
         equilibria = find_pure_strategy_nash_equilibria(game)
         if not equilibria:
             return {"computable": False, "reason": "No pure-strategy Nash equilibrium exists for punishment stage"}
-        punishment_profile = equilibria[0]
+        # Select the punishment profile that yields the minimum average utility (harshest punishment)
+        # to maximize the threat of grim trigger.
+        def avg_utility(p):
+            return sum(game.get_utility(i, p) for i in range(len(game.participants))) / len(game.participants)
+        punishment_profile = min(equilibria, key=avg_utility)
         
     elif not is_pure_strategy_nash_equilibrium(game, punishment_profile):
         return {"computable": False, "reason": "Provided punishment profile is not a pure-strategy Nash equilibrium"}
