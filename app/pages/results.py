@@ -12,9 +12,6 @@ res = st.session_state["latest_result"]
 
 st.markdown(f"**Result type**: {res.get('result_type')}")
 st.markdown(f"**n**: {res.get('n')}, **t**: {res.get('t')}")
-st.markdown(f"**Risk Mode**: {'Risk-adjusted' if res.get('risk_aversion', 0)>0 else 'Risk-neutral'}")
-st.markdown(f"**Detection probability (defect)**: {res.get('detection_probability_defect', 1.0)}")
-st.markdown(f"**Payment Rule**: {res.get('split_rule')}")
 
 st.header("BASELINE STAGE GAME")
 col1, col2, col3 = st.columns(3)
@@ -45,39 +42,63 @@ else:
             st.metric("Service-failure destabilization threshold B_service*", f"{b_serv:.4f}")
         else:
             st.metric("Service-failure threshold", "not reachable under current model")
-            
-    # Auditable breakdown for Service Failure
-    if isinstance(b_serv, float) and "service_details" in res and res["service_details"]:
-        details = res["service_details"]
-        baseline_fail = 1.0 - res.get("p_success", 1.0)
-        dev_fail = 1.0 - details.get("dev_p_success", 1.0)
-        st.subheader("Auditable Breakdown (Service Failure)")
-        st.write(f"- **Baseline service-failure probability**: {baseline_fail:.4f}")
-        st.write(f"- **Service-failure probability after deviation**: {dev_fail:.4f}")
-        st.write(f"- **Incremental service-failure probability**: {dev_fail - baseline_fail:.4f}")
-        st.write(f"- **Relevant coalition**: {details.get('coalition')}")
-        st.write(f"- **Relevant joint deviation**: {[str(s).split('.')[-1] for s in details.get('joint_deviation', [])]}")
-        st.write(f"- **Reservation prices**: {[round(r,4) for r in details.get('reservation_prices', [])]}")
-            
+
 st.header("REPEATED GAME")
 if res.get("repeated_computable"):
     st.metric("Grim-trigger sustainability", "SUSTAINABLE" if res.get("repeated_sustainable") else "NOT SUSTAINABLE")
     st.write(f"Punishment profile: {res.get('punishment_profile')}")
 else:
-    st.write("Grim-trigger sustainability calculation is not computable under the v1 model.")
+    st.write("Grim-trigger sustainability calculation is not computable under the current model constraints.")
 
-st.header("WHY DID THE SYSTEM PRODUCE THIS RESULT?")
+st.markdown("---")
+
+st.header("INTERPRETATION")
 if res.get("result_type") == "Enumerated":
-    if not res.get("nash_equilibrium"):
-        st.write("The honest profile is not a pure-strategy Nash equilibrium because at least one participant obtains a higher expected utility by unilaterally deviating from honest under the configured assumptions.")
+    interp = "The baseline honest profile is "
+    if res.get("nash_equilibrium"):
+        interp += "a pure-strategy Nash equilibrium "
     else:
-        st.write("The honest profile is a pure-strategy Nash equilibrium. No participant can unilaterally deviate for a strictly higher expected utility.")
+        interp += "NOT a pure-strategy Nash equilibrium "
         
-    if not res.get("coalition_stable"):
-        st.write("The honest profile lacks strict coalition stability because there exists a coalition that can jointly deviate to strictly increase every member's utility without external bribes.")
+    if res.get("coalition_stable"):
+        interp += "and is strictly coalition-stable under the configured assumptions. "
+    else:
+        interp += "but lacks strict coalition stability under the configured assumptions. "
         
-    if isinstance(b_serv, float) and b_serv > 0:
-        st.write(f"A service-failure destabilization requires an infimum external incentive of {b_serv:.4f} under the {res.get('split_rule')} rule. An attacker offering strictly greater than this amount can induce a rational coalition to fail the service.")
+    if b_behav is None and res.get("coalition_stable") == False:
+        interp += "Because the system is intrinsically unstable, no external incentive is required to induce a profitable deviation."
+    else:
+        if isinstance(b_serv, float):
+            interp += f"A service-disrupting coalition would require an external incentive with infimum B_service* = {b_serv:.4f}. "
+        else:
+            interp += "No feasible coalition/deviation under the configured model can cause service failure. "
+            
+    if res.get("repeated_computable"):
+        if res.get("repeated_sustainable"):
+            interp += "However, under infinite-horizon repeated interaction, the honest profile can be sustained by a grim-trigger strategy, deterring short-term deviations."
+        else:
+            interp += "Under infinite-horizon repeated interaction, the honest profile cannot be sustained, meaning long-term relationships do not provide sufficient deterrent."
+            
+    st.write(interp)
+
+st.markdown("---")
+
+if isinstance(b_serv, float) and "service_details" in res and res["service_details"]:
+    with st.expander("View calculation details", expanded=False):
+        details = res["service_details"]
+        baseline_fail = 1.0 - res.get("p_success", 1.0)
+        dev_fail = 1.0 - details.get("dev_p_success", 1.0)
+        
+        st.markdown(f"**Relevant coalition**: {details.get('coalition')}")
+        st.markdown(f"**Relevant joint deviation**: {[str(s).split('.')[-1] for s in details.get('joint_deviation', [])]}")
+        st.markdown(f"**Reservation prices**: {[round(r,4) for r in details.get('reservation_prices', [])]}")
+        st.markdown(f"**Baseline failure probability**: {baseline_fail:.4f}")
+        st.markdown(f"**Post-deviation failure probability**: {dev_fail:.4f}")
+        st.markdown(f"**Incremental failure probability**: {dev_fail - baseline_fail:.4f}")
+        st.markdown(f"**Payment rule**: {res.get('split_rule')}")
+        st.markdown(f"**Risk mode**: {'Risk-adjusted' if res.get('risk_aversion', 0)>0 else 'Risk-neutral'}")
+        st.markdown(f"**Detection probability (defect)**: {res.get('detection_probability_defect', 1.0)}")
+        st.markdown(f"**Result type**: {res.get('result_type')}")
 
 st.header("RESEARCH EXPORT")
 st.markdown("Download a Markdown report summarizing this experiment.")
@@ -96,7 +117,7 @@ Under what external incentive regimes do threshold cryptographic services cease 
 - B_behavioral*: {b_behav if b_behav is not None else 'N/A'}
 - B_service*: {b_serv if b_serv is not None else 'N/A'}
 
-## Open Questions
-[insufficient data to conclude]
+## Interpretation
+{interp if res.get("result_type") == "Enumerated" else "Simulated result; exact interpretation omitted."}
 """
-st.download_button("Download Research Report", data=report, file_name="threshold_fairness_lab_report.md", mime="text/markdown")
+st.download_button("Download Research Report", data=report, file_name="threshold_economic_security_report.md", mime="text/markdown")

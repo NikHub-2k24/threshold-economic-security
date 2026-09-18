@@ -1,0 +1,65 @@
+name: Keep Streamlit App Awake
+
+on:
+  schedule:
+    - cron: '0 */5 * * *'  # Run every 5 hours
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  keep-awake:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          playwright install chromium
+
+      - name: Run keep-awake script
+        run: |
+          python << 'EOF'
+          from playwright.sync_api import sync_playwright
+          import time
+
+          # Replace this with your actual Streamlit App URL
+          APP_URL = "https://threshold-economic-security-by-nikhil.streamlit.app/"
+
+          def run(playwright):
+              browser = playwright.chromium.launch(headless=True)
+              context = browser.new_context()
+              page = context.new_page()
+              
+              print(f"Navigating to {APP_URL}...")
+              try:
+                  # Use domcontentloaded to avoid waiting for WebSockets indefinitely
+                  page.goto(APP_URL, wait_until='domcontentloaded', timeout=30000)
+              except Exception as e:
+                  print(f"Page load exception (expected with websockets): {e}")
+
+              # Look for the 'wake up' button that Streamlit displays when an app goes to sleep
+              wakeup_button = page.locator("button:has-text('Yes, get this app back up!')")
+              
+              if wakeup_button.is_visible():
+                  print("App is sleeping. Clicking wake up button...")
+                  wakeup_button.click()
+                  print("Waiting 45 seconds for server to boot...")
+                  time.sleep(45)
+              else:
+                  print("App is awake. Waiting 15 seconds to register traffic...")
+                  time.sleep(15)
+                  
+              print("Done!")
+              browser.close()
+
+          with sync_playwright() as playwright:
+              run(playwright)
+          EOF

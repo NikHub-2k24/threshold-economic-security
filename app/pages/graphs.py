@@ -70,9 +70,13 @@ if 'n' in df.columns and 't' in df.columns and 'b_service_star' in df.columns:
     df_exact = df[df['result_type'] == 'Enumerated'].copy()
     df_exact['b_service_star'] = pd.to_numeric(df_exact['b_service_star'], errors='coerce')
     if len(df_exact['n'].unique()) > 1:
+        st.write("**What question does this visualization answer?**")
+        st.write("How does the minimum cost of a service-disrupting coalition change as the protocol parameters (n, t) scale?")
         pivot = df_exact.pivot_table(index='t', columns='n', values='b_service_star')
         fig = px.imshow(pivot, text_auto=True, title="Minimum Destabilizing Incentive (B_service_star) [Enumerated]", origin="lower")
         st.plotly_chart(fig)
+        st.write("**What should the researcher look for?**")
+        st.write("Look for non-linear drops in B_service* where a high threshold requires an unexpectedly small coalition to stall the network.")
     else:
         st.write("Insufficient exact enumeration data available for matrix. Run a parameter sweep over n and t.")
         
@@ -80,7 +84,11 @@ st.header("Reliability / Service-Failure Frontier")
 if 't' in df.columns and 'p_success' in df.columns:
     df_frontier = df.copy()
     if len(df_frontier['t'].unique()) > 1:
+        st.write("**What question does this visualization answer?**")
+        st.write("How does increasing the required threshold affect the baseline statistical probability of a successful service execution?")
         fig = px.line(df_frontier, x='t', y='p_success', color='n', markers=True, title="Service Availability by Threshold (Simulated/Enumerated)")
         st.plotly_chart(fig)
+        st.write("**What should the researcher look for?**")
+        st.write("Look for the tipping point where increasing the threshold t to improve security inadvertently causes the baseline availability to plummet toward zero.")
     else:
         st.write("Insufficient data for frontier visualization. Run a parameter sweep.")
