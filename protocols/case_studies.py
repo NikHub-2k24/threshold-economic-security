@@ -13,7 +13,7 @@ def get_atomic_exchange_collusion_config(n=3, t=2):
         "reliability": 1.0, "detection_probability_defect": 0.5
     }
 
-def get_threshold_oracle_config(n=10, t=7):
+def get_threshold_oracle_config(n=8, t=5):
     return {
         "n": n, "t": t, "reward": 0.5, "cost": 0.2, "collateral": 2.0,
         "reliability": 0.95, "detection_probability_defect": 0.8
